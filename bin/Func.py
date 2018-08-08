@@ -1,7 +1,8 @@
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-
+from xml.etree import ElementTree as ET
+import time
 
 ##########################读数据##########################
 def read_tiff(path):
@@ -41,10 +42,10 @@ def get_regions(img, pos_set):
         # print(pos)
         regions.append(crop_image(img, pos[0], pos[1], pos[2], pos[3]))
         # 显示图像
-        plt.imshow(regions[i], cmap='gray')  # 显示图片
-        plt.axis('off')  # 不显示坐标轴
-        plt.show()
-        i = i + 1
+        # plt.imshow(regions[i], cmap='gray')  # 显示图片
+        # plt.axis('off')  # 不显示坐标轴
+        # plt.show()
+        i += 1
     return regions
 
 def slide_window(img, window_size=8, data_type='test'):
@@ -126,3 +127,45 @@ def minibatches(inputs=None, targets=None, batch_size=None, shuffle=False):
         # yield 是一个类似 return 的关键字，迭代一次遇到yield时就返回yield后面的值。
         # 重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码开始执行。
         yield inputs[excerpt], targets[excerpt]
+
+
+###########################输入输出################################
+
+# 矩阵转图像
+def matrix_to_image(matrix):
+    matrix *= 255
+    image = Image.fromarray(matrix.astype(np.uint8))
+    return image
+
+# 输出XML文件
+def xml_output(filename, results_file_jpg, path):
+    '''
+
+    :param filename: 当前输入图像名称
+    :param results_file_jpg: 输出的jpg文件名称
+    :param path: 输出的xml文件名称
+    :return:
+    '''
+
+    # 第一层
+    root = ET.Element('Research', {'ImageName': filename, 'Direction': '高分软件大赛'})
+
+    # 第二层
+    first_node_1 = ET.SubElement(root, 'Department')
+    first_node_1.text = '中国民航大学'
+    first_node_2 = ET.SubElement(root, 'Date')
+    first_node_2.text = time.strftime("%Y-%m-%d")
+    first_node_3 = ET.SubElement(root, 'PluginName')
+    first_node_3.text = '目标提取'
+    first_node_4 = ET.SubElement(root, 'PluginClass')
+    first_node_4.text = '提取'
+    first_node_5 = ET.SubElement(root, 'Results', {'Coordinate': 'Pixel'})
+
+    # 第三层
+    second_node = ET.SubElement(first_node_5, 'ResultsFile')
+    second_node.text = results_file_jpg
+
+    # 生成树
+    tree = ET.ElementTree(root)
+    # 保存 （输出目录+输出文件名，UTF-8编码方式，声明中显示编码方式）
+    tree.write(path, encoding='UTF-8', xml_declaration=True)

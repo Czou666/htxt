@@ -156,7 +156,7 @@ for epoch in range(n_epoch):
 
 
 ########################## 保存模型 ##########################
-model_path = './model.ckpt'
+model_path = 'model/model.ckpt'
 saver.save(sess,model_path)
 sess.close()
 
