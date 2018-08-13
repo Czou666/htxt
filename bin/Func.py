@@ -1,19 +1,9 @@
-from PIL import Image
-import matplotlib.pyplot as plt
+from skimage import morphology
 import numpy as np
 from xml.etree import ElementTree as ET
 import time
 
 ##########################读数据##########################
-def read_tiff(path):
-
-    img = Image.open(path)
-    img = np.asanyarray(img)
-    # 显示图像
-    plt.imshow(img, cmap='gray')  # 显示图片
-    plt.axis('off')  # 不显示坐标轴
-    plt.show()
-    return img
 
 def crop_image(img, start_row, end_row, start_column, end_column):
     region = img[start_row:end_row, start_column:end_column]
@@ -42,9 +32,8 @@ def get_regions(img, pos_set):
         # print(pos)
         regions.append(crop_image(img, pos[0], pos[1], pos[2], pos[3]))
         # 显示图像
-        # plt.imshow(regions[i], cmap='gray')  # 显示图片
-        # plt.axis('off')  # 不显示坐标轴
-        # plt.show()
+        # io.imshow(regions[i], cmap='gray')  # 显示图片
+        # io.show()
         i += 1
     return regions
 
@@ -63,8 +52,8 @@ def slide_window(img, window_size=8, data_type='test'):
     if data_type == "test":
         add_row = img[-window_size:]
         img = np.row_stack((img, add_row))
-        add_column = img[:,-window_size:]
-        img = np.column_stack((img,add_column))
+        add_column = img[:, -window_size:]
+        img = np.column_stack((img, add_column))
     if data_type == "train":
         img_row = img_row - window_size
         img_column = img_column - window_size
@@ -97,7 +86,7 @@ def get_training_set(regions, region_type):
         labels = [0] * data.__len__()
     return data, labels
 
-#######################################################################
+############################ CNN #########################################
 
 # 定义批处理函数
 def minibatches(inputs=None, targets=None, batch_size=None, shuffle=False):
@@ -128,21 +117,32 @@ def minibatches(inputs=None, targets=None, batch_size=None, shuffle=False):
         # 重点是：下一次迭代时，从上一次迭代遇到的yield后面的代码开始执行。
         yield inputs[excerpt], targets[excerpt]
 
+###########################形态学处理################################
 
-###########################输入输出################################
+def morphology_process(cnn_result, min_size=64, disk_value=1):
 
-# 矩阵转图像
-def matrix_to_image(matrix):
-    matrix *= 255
-    image = Image.fromarray(matrix.astype(np.uint8))
-    return image
+    row, column = cnn_result.shape
+    labels = np.zeros((row, column), dtype=np.bool)
+    labels[cnn_result == 1] = True
+
+    # 去除散点及小区域
+    morphology.remove_small_objects(labels, min_size=min_size, connectivity=1, in_place=True)
+    # io.imshow(labels)
+    # io.show()
+    # 图像闭运算
+    labels = morphology.closing(labels, morphology.disk(disk_value))
+    # io.imshow(labels)
+    # io.show()
+    return labels
+
+###########################输出################################
 
 # 输出XML文件
-def xml_output(filename, results_file_jpg, path):
+def xml_output(filename, results_file_name, path):
     '''
 
     :param filename: 当前输入图像名称
-    :param results_file_jpg: 输出的jpg文件名称
+    :param results_file_name: 输出图片名称
     :param path: 输出的xml文件名称
     :return:
     '''
@@ -163,7 +163,7 @@ def xml_output(filename, results_file_jpg, path):
 
     # 第三层
     second_node = ET.SubElement(first_node_5, 'ResultsFile')
-    second_node.text = results_file_jpg
+    second_node.text = results_file_name
 
     # 生成树
     tree = ET.ElementTree(root)
